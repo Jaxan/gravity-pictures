@@ -1,0 +1,9 @@
+[submodule "contrib/moggle"]
+	path = contrib/moggle
+	url = git://github.com/m-ou-se/moggle.git
+[submodule "contrib/ImageStreams"]
+	path = contrib/ImageStreams
+	url = git://github.com/Jaxan/ImageStreams.git
+[submodule "contrib/beats-sim"]
+	path = contrib/beats-sim
+	url = git://github.com/Jaxan/beats-sim.git

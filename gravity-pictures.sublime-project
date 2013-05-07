@@ -1,0 +1,22 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"sublimeclang_options":
+		[
+			"-std=c++11",
+			"-stdlib=libc++",
+			"-nostdinc",
+			"-isystem/Users/joshua/Documents/Code/libcxx/include/",
+			"-isystem/usr/include",
+			"-isystem/Library/Frameworks/libpng.framework/Headers/",
+			"-isystem${folder:${project_path:gravity-pictures.sublime-project}}/contrib/",
+			"-isystem${folder:${project_path:gravity-pictures.sublime-project}}/contrib/moggle/include/"
+		]
+	}
+}
