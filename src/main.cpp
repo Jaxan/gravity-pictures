@@ -1,5 +1,9 @@
 #include <chrono>
 #include <iostream>
+#include <thread>
+
+#include <lock_queue.hpp>
+#include <thread_pool.hpp>
 
 #include "opengl.hpp"
 #include "app.hpp"
@@ -26,15 +30,35 @@ void render(RenderOptions ro, AppOptions ao, std::string filename){
 	app a(ro, ao);
 
 	{	Timer timer("rendering");
+
+		queue<std::vector<LineVertex>> buffers;
+		thread_pool tp;
+
 		for(int i = 0; i < ro.chunks; ++i){
-			a.clear_fbo();
 			for(int j = 0; j < ro.chunk_size; ++j){
-				float x = double(ro.width) * (double(i) / double(ro.samples) + double(j) / double(ro.chunk_size));
-				float y = 0.0f;
-				a.draw({x, y});
+				tp.add([&a, &ro, &buffers, i, j]{
+					float x = double(ro.width) * (double(i) / double(ro.samples) + double(j) / double(ro.chunk_size));
+					float y = 0.0f;
+					buffers.push(a.produce({x, y}));
+				});
+			}
+		}
+
+		int nthreads = std::thread::hardware_concurrency() - 1;
+		if(nthreads < 1) nthreads = 1;
+		tp.run(nthreads);
+
+		for(int i = 0; i < ro.chunks; ++i){
+			for(int j = 0; j < ro.chunk_size;){
+				auto b = buffers.try_pop();
+				if(b){
+					a.consume(*b);
+					++j;
+				}
 			}
 			a.download_fbo();
 			a.accumulate_fbo();
+			a.clear_fbo();
 		}
 	}
 

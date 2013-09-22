@@ -98,6 +98,7 @@ struct app{
 		moggle::gl::blend_function(GL_ONE, GL_ONE);
 		// moggle::gl::enable(GL_LINE_SMOOTH);
 		// glLineWidth(0.5f);
+		clear_fbo();
 	}
 
 	void clear_fbo(){
@@ -105,27 +106,29 @@ struct app{
 		moggle::gl::clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
-	void draw(Vec2 position){
-		sim.balls.clear();
-		sim.balls.emplace_back(position.x, position.y, 0.0, 0.0);
+	std::vector<LineVertex> produce(Vec2 starting_position){
+		simu_type sim_copy = sim;
+		sim_copy.balls.emplace_back(starting_position.x, starting_position.y, 0.0, 0.0);
 
-		{
-			std::vector<LineVertex> lines;
+		std::vector<LineVertex> output;
+		output.reserve(ao.line_bound);
 
-			lines.reserve(ao.line_bound);
-			int count = ao.line_bound;
-			while(sim.balls.size() == 1 && count--){
-				lines.emplace_back(sim.balls.front().position, ro.color);
-				sim.update(ao.dt);
-			}
-
-			moggle::gl::enable_vertex_attribute_array(line_shader.attribute_location("position"));
-			moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("position"), 2, GL_FLOAT, GL_FALSE, sizeof(LineVertex), &lines[0].position.x);
-			moggle::gl::enable_vertex_attribute_array(line_shader.attribute_location("color"));
-			moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("color"), 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(LineVertex), &lines[0].color);
-
-			moggle::gl::draw_arrays(GL_LINE_STRIP, 0, lines.size());
+		int count = ao.line_bound;
+		while(sim_copy.balls.size() == 1 && count--){
+			output.emplace_back(sim_copy.balls.front().position, ro.color);
+			sim_copy.update(ao.dt);
 		}
+
+		return output;
+	}
+
+	void consume(std::vector<LineVertex> lines){
+		moggle::gl::enable_vertex_attribute_array(line_shader.attribute_location("position"));
+		moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("position"), 2, GL_FLOAT, GL_FALSE, sizeof(LineVertex), &lines[0].position.x);
+		moggle::gl::enable_vertex_attribute_array(line_shader.attribute_location("color"));
+		moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("color"), 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(LineVertex), &lines[0].color);
+
+		moggle::gl::draw_arrays(GL_LINE_STRIP, 0, lines.size());
 	}
 
 	void download_fbo(){
