@@ -30,7 +30,7 @@ namespace math{
 
 	template <typename T>
 	T dot(vector<T, 2> a, vector<T, 2> b){
-		return a.x * b.x + a.y + b.y;
+		return a.x * b.x + a.y * b.y;
 	}
 
 	template <typename T, int N>
