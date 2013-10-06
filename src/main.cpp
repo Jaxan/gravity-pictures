@@ -6,8 +6,8 @@
 #include <thread_pool.hpp>
 
 #include "opengl.hpp"
-#include "app.hpp"
 #include "renderoptions.hpp"
+#include "app.hpp"
 
 // RAII timer
 struct Timer {
@@ -38,7 +38,7 @@ void render(RenderOptions ro, AppOptions ao, std::string filename){
 			for(int j = 0; j < ro.chunk_size; ++j){
 				tp.add([&a, &ro, &buffers, i, j]{
 					float x = double(ro.width) * (double(i) / double(ro.samples) + double(j) / double(ro.chunk_size));
-					float y = 0.0f;
+					float y = 800.0f;
 					buffers.push(a.produce({x, y}));
 				});
 			}
@@ -50,10 +50,11 @@ void render(RenderOptions ro, AppOptions ao, std::string filename){
 
 		for(int i = 0; i < ro.chunks; ++i){
 			for(int j = 0; j < ro.chunk_size;){
-				auto b = buffers.try_pop();
-				if(b){
+				if(auto b = buffers.try_pop()) {
 					a.consume(*b);
 					++j;
+				} else {
+					std::this_thread::yield();
 				}
 			}
 			a.download_fbo();
@@ -70,15 +71,14 @@ void render(RenderOptions ro, AppOptions ao, std::string filename){
 int main(int argc, char const *argv[]){
 	context c;
 
-	for(auto i : {0, 1, 2}){
+	for(auto i : {1, 2, 3}){
 		srand(i);
-		auto ro = RenderOptions::defaults(1280, 800, 2);
+		auto ro = RenderOptions::defaults(1280, 800, 8);
 
 		AppOptions ao;
-		ao.number_of_lines = 100;
 
 		std::cout << std::endl;
-		std::string filename = "out_" + std::to_string(i) + ".png";
+		std::string filename = "new_" + std::to_string(i) + ".png";
 		render(ro, ao, filename);
 		std::cout << "finished " << filename << std::endl;
 	}

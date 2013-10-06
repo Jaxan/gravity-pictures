@@ -5,7 +5,6 @@
 #include <limits>
 #include <vector>
 
-#define _LIBCPP_STD_VER 13 // I AM A LEET HAXORX, should update my clang though...
 #include <optional>
 
 #include "math_ext.hpp"
@@ -99,12 +98,26 @@ struct bounce{
 	{}
 };
 
+// bounds
+template <typename T>
+struct bounds{
+	T xmin{0};
+	T xmax{1280};
+	T ymin{0};
+	T ymax{800};
+
+	bool out_of_bounds(math::vector<T, 2> v) const {
+		return v.y > ymax || v.x < xmin || v.x > xmax;
+	}
+};
+
 // container for options
 template <typename T>
 struct trace_options{
 	math::vector<T, 2> gravity {0.0, -10.0};
 	size_t max_bounces {500};
-	T max_time {30};
+	T max_time {20};
+	bounds<T> bounds;
 };
 
 // container for lines
@@ -151,6 +164,9 @@ std::vector<bounce<T>> trace(trace_options<T> const & options, bounce<T> b, line
 
 		// done
 		bounces.push_back(b);
+
+		// if outside scope, we can stop
+		if(options.bounds.out_of_bounds(b.position)) break;
 	}
 
 	return bounces;

@@ -4,9 +4,6 @@
 [submodule "contrib/ImageStreams"]
 	path = contrib/ImageStreams
 	url = git://github.com/Jaxan/ImageStreams.git
-[submodule "contrib/beats-sim"]
-	path = contrib/beats-sim
-	url = git://github.com/Jaxan/beats-sim.git
 [submodule "contrib/simple-threading"]
 	path = contrib/simple-threading
 	url = git@github.com:Jaxan/simple-threading.git

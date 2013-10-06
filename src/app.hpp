@@ -5,7 +5,6 @@
 #include <numeric>
 #include <cmath>
 
-#include <beats-sim/Simulation.h>
 #include <ImageStreams/include/png.hpp>
 #include <moggle/math/projection.hpp>
 
@@ -14,12 +13,10 @@
 #include "fbo.hpp"
 #include "renderoptions.hpp"
 
-using namespace simulation;
+#include "collisions.hpp"
 using namespace math;
-
-using ball_info = void;
-using line_info = void;
-using simu_type = Simulation<ball_info, line_info>;
+using T = double;
+using Vec2 = math::vector<T, 2>;
 
 struct Color {
 	unsigned char r, g, b;
@@ -35,7 +32,7 @@ struct LineVertex {
 };
 
 struct AppOptions {
-	float dt{1.0f / 240.0f};
+	float dt{1.0f / 20.0f};
 	float line_length{200.0f};
 	int number_of_lines{50};
 	int line_bound{5000};
@@ -58,7 +55,8 @@ struct app{
 	Shader line_shader;
 	Fbo fbo;
 
-	simu_type sim;
+	trace_options<T> to;
+	lines<T> lines;
 
 	app(RenderOptions ro, AppOptions ao)
 	: ro(ro)
@@ -69,23 +67,23 @@ struct app{
 	, fbo(width, height)
 	{
 		const float margin = 20;
-		sim.bounds.xmin = -margin;
-		sim.bounds.ymin = -margin;
-		sim.bounds.xmax = width + margin;
-		sim.bounds.ymax = height + margin;
+		to.bounds.xmin = -margin;
+		to.bounds.ymin = -margin;
+		to.bounds.xmax = width + margin;
+		to.bounds.ymax = height + margin;
 
 		float line_length = ao.line_length;
 		for(int i = 0; i < ao.number_of_lines; ++i){
 			float x = rand() / float(RAND_MAX) * width;
 			float y = rand() / float(RAND_MAX) * height;
 
-			float x2 = x + rand() / float(RAND_MAX) * line_length - 0.5f * line_length;
-			float y2 = y + rand() / float(RAND_MAX) * line_length - 0.5f * line_length;
+			float x2 = rand() / float(RAND_MAX) * line_length - 0.5f * line_length;
+			float y2 = rand() / float(RAND_MAX) * line_length - 0.5f * line_length;
 
-			sim.lines.emplace_back(Vec2{x, y}, Vec2{x2, y2}, kOneWay);
+			lines.emplace_back(Vec2{x, y}, Vec2{x2, y2});
 		}
 
-		auto projectionMatrix = moggle::projection_matrices::orthographic(0, width, 0, height, -100.0f, 100.0f);
+		auto projectionMatrix = moggle::projection_matrices::orthographic(0, width, height, 0, -100.0f, 100.0f);
 		auto modelViewProjectionMatrix = projectionMatrix;
 
 		line_shader.s.use();
@@ -107,28 +105,36 @@ struct app{
 	}
 
 	std::vector<LineVertex> produce(Vec2 starting_position){
-		simu_type sim_copy = sim;
-		sim_copy.balls.emplace_back(starting_position.x, starting_position.y, 0.0, 0.0);
+		auto tr = trace(to, {starting_position, Vec2{0, 0}}, lines);
 
 		std::vector<LineVertex> output;
 		output.reserve(ao.line_bound);
 
-		int count = ao.line_bound;
-		while(sim_copy.balls.size() == 1 && count--){
-			output.emplace_back(sim_copy.balls.front().position, ro.color);
-			sim_copy.update(ao.dt);
+		T local_t = 0;
+		auto it = tr.begin();
+		auto next = it + 1;
+		for(T t = 0; t < to.max_time; t += ao.dt){
+			if(next != tr.end() && t > next->time){
+				it = next++;
+				output.emplace_back(it->position, ro.color);
+				local_t = t - it->time;
+			}
+			Vec2 position = T{0.5}*to.gravity*local_t*local_t + it->velocity*local_t + it->position;
+			output.emplace_back(position, ro.color);
+
+			local_t += ao.dt;
 		}
 
 		return output;
 	}
 
-	void consume(std::vector<LineVertex> lines){
+	void consume(std::vector<LineVertex> line_vertices){
 		moggle::gl::enable_vertex_attribute_array(line_shader.attribute_location("position"));
-		moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("position"), 2, GL_FLOAT, GL_FALSE, sizeof(LineVertex), &lines[0].position.x);
+		moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("position"), 2, GL_DOUBLE, GL_FALSE, sizeof(LineVertex), &line_vertices[0].position);
 		moggle::gl::enable_vertex_attribute_array(line_shader.attribute_location("color"));
-		moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("color"), 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(LineVertex), &lines[0].color);
+		moggle::gl::vertex_attribute_pointer(line_shader.attribute_location("color"), 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(LineVertex), &line_vertices[0].color);
 
-		moggle::gl::draw_arrays(GL_LINE_STRIP, 0, lines.size());
+		moggle::gl::draw_arrays(GL_LINE_STRIP, 0, line_vertices.size());
 	}
 
 	void download_fbo(){
